@@ -349,7 +349,7 @@ namespace threadTest
             SalaryEventHandler dele = test.YearlySalary;
 
             //异步方法开始执行,看最后一个参数(Object对象) [Note1:],这里我们传递2000(int)
-            IAsyncResult result= dele.BeginInvoke(100000, 15, 100000, GetResultCallBack, 2000);
+            IAsyncResult result= dele.BeginInvoke(100000, 15, 100000,  GetResultCallBack, 2000);
 
 
 
@@ -381,6 +381,203 @@ namespace threadTest
                 return 9999;
             }
         }
+        #endregion
+
+
+        #region 使用IsCompleted属性判断异步操作是否完成
+
+        delegate string MyDelegate1(string name);
+
+        private void button10_Click(object sender, EventArgs e)
+        {
+            ThreadMessage("Main Thread");
+
+            //建立委托
+            MyDelegate1 myDelegate = new MyDelegate1(Hello1);
+            //异步调用委托，获取计算结果
+            IAsyncResult result = myDelegate.BeginInvoke("Leslie", null, null);
+            //在异步线程未完成前执行其他工作
+            while (!result.IsCompleted)
+            {
+                Thread.Sleep(200);      //虚拟操作
+                Console.WriteLine("Main thead do work!");
+            }
+            string data = myDelegate.EndInvoke(result);
+            Console.WriteLine(data);
+        }
+
+        static string Hello1(string name)
+        {
+            ThreadMessage3("Async Thread");
+            Thread.Sleep(2000);
+            return "Hello " + name;
+        }
+
+        static void ThreadMessage3(string data)
+        {
+            string message = string.Format("{0}\n  ThreadId is:{1}",
+                   data, Thread.CurrentThread.ManagedThreadId);
+            Console.WriteLine(message);
+        }
+
+        #endregion
+
+
+        #region  使用waitall属性判断异步操作是否完成
+
+        //.NET为WaitHandle准备了另外两个静态方法：WaitAny（waitHandle[], int）与WaitAll(waitHandle[] , int)。
+        //其中WaitAll在等待所有waitHandle完成后再返回一个bool值。
+        //而WaitAny是等待其中一个waitHandle完成后就返回一个int，这个int是代表已完成waitHandle在waitHandle[] 中的数组索引。
+        //下面就是使用WaitAll的例子，运行结果与使用 IAsyncResult.IsCompleted 相同。
+
+        delegate string MyDelegate2(string name);
+
+        private void button11_Click(object sender, EventArgs e)
+        {
+            ThreadMessage("Main Thread");
+
+            //建立委托
+            MyDelegate2 myDelegate = new MyDelegate2(Hello2);
+
+            //异步调用委托，获取计算结果
+            IAsyncResult result = myDelegate.BeginInvoke("Leslie", null, null);
+
+            //此处可加入多个检测对象
+            WaitHandle[] waitHandleList = new WaitHandle[] { result.AsyncWaitHandle };
+            while (!WaitHandle.WaitAll(waitHandleList, 200))
+            {
+                Console.WriteLine("Main thead do work!");
+            }
+            string data = myDelegate.EndInvoke(result);
+            Console.WriteLine(data);
+        }
+
+        static string Hello2(string name)
+        {
+            ThreadMessage4("Async Thread");
+            Thread.Sleep(2000);
+            return "Hello " + name;
+        }
+
+        static void ThreadMessage4(string data)
+        {
+            string message = string.Format("{0}\n  ThreadId is:{1}",
+                   data, Thread.CurrentThread.ManagedThreadId);
+            Console.WriteLine(message);
+        }
+        #endregion
+
+
+        #region  回调函数
+
+        delegate string MyDelegate3(string name);
+
+
+        private void button12_Click(object sender, EventArgs e)
+        {
+            ThreadMessage("Main Thread");
+
+            //建立委托
+            MyDelegate3 myDelegate = new MyDelegate3(Hello);
+            //异步调用委托，获取计算结果
+            myDelegate.BeginInvoke("Leslie", new AsyncCallback(Completed), null);
+            //在启动异步线程后，主线程可以继续工作而不需要等待
+            for (int n = 0; n < 6; n++)
+                Console.WriteLine("  Main thread do work!");
+            Console.WriteLine("");
+
+        }
+
+        static string Hello5(string name)
+        {
+            ThreadMessage5("Async Thread");
+            Thread.Sleep(2000);             
+            //模拟异步操作
+            return "\nHello " + name;
+        }
+
+        static void Completed(IAsyncResult result)
+        {
+            ThreadMessage5("Async Completed");
+
+            //获取委托对象，调用EndInvoke方法获取运行结果
+            AsyncResult _result = (AsyncResult)result;
+            MyDelegate3 myDelegate = (MyDelegate3)_result.AsyncDelegate;
+            string data = myDelegate.EndInvoke(_result);
+            Console.WriteLine(data);
+        }
+
+        static void ThreadMessage5(string data)
+        {
+            string message = string.Format("{0}\n  ThreadId is:{1}",
+                   data, Thread.CurrentThread.ManagedThreadId);
+            Console.WriteLine(message);
+        }
+
+        #endregion
+
+        #region 回调函数（带参数）
+
+        delegate string MyDelegate4(string name);
+
+        private void button13_Click(object sender, EventArgs e)
+        {
+            ThreadMessage("Main Thread");
+
+            //建立委托
+            MyDelegate4 myDelegate = new MyDelegate4(Hello);
+
+            //建立Person对象
+            Person1 person = new Person1();
+            person.Name = "Elva";
+            person.Age = 27;
+
+            //异步调用委托，输入参数对象person, 获取计算结果
+            myDelegate.BeginInvoke("Leslie", new AsyncCallback(Completed), person);
+
+            //在启动异步线程后，主线程可以继续工作而不需要等待
+            for (int n = 0; n < 6; n++)
+                Console.WriteLine("  Main thread do work!");
+            Console.WriteLine("");
+        }
+
+        public class Person1
+        {
+            public string Name;
+            public int Age;
+        }
+
+
+
+        static string Hello6(string name)
+        {
+            ThreadMessage6("Async Thread");
+            Thread.Sleep(2000);
+            return "\nHello " + name;
+        }
+
+        static void Completed6(IAsyncResult result)
+        {
+            ThreadMessage6("Async Completed");
+
+            //获取委托对象，调用EndInvoke方法获取运行结果
+            AsyncResult _result = (AsyncResult)result;
+            MyDelegate4 myDelegate = (MyDelegate4)_result.AsyncDelegate;
+            string data = myDelegate.EndInvoke(_result);
+            //获取Person对象
+            Person1 person = (Person1)result.AsyncState;
+            string message = person.Name + "'s age is " + person.Age.ToString();
+
+            Console.WriteLine(data + "\n" + message);
+        }
+
+        static void ThreadMessage6(string data)
+        {
+            string message = string.Format("{0}\n  ThreadId is:{1}",
+                   data, Thread.CurrentThread.ManagedThreadId);
+            Console.WriteLine(message);
+        }
+
         #endregion
     }
 }
