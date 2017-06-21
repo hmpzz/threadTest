@@ -516,6 +516,7 @@ namespace threadTest
 
         #endregion
 
+
         #region 回调函数（带参数）
 
         delegate string MyDelegate4(string name);
@@ -579,5 +580,9 @@ namespace threadTest
         }
 
         #endregion
+
+
+
+
     }
 }
